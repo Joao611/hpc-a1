@@ -1,7 +1,11 @@
 #include <cstdio>
 #include <ctime>
+#include <utility>
+#include <vector>
 
 #include "matrix.h"
+
+using namespace std;
 
 /* Code taken from the GLIBC manual.
  *
@@ -50,6 +54,49 @@ static int col_ind[max_n_elements];
 static int row_ptr_begin[max_n_rows];
 static int row_ptr_end[max_n_rows];
 
+static vector<pair<int, int>> swappedRows;
+
+void buildX1(int n, double sol[]) {
+  for (int i = 0; i < n; n++) {
+    sol[i] = 1;
+  }
+}
+
+void buildX2(int n, double sol[]) {
+  for (int i = 0; i < n; n++) {
+    sol[i] = 0.1;
+  }
+}
+
+// alternating -1, +1
+void buildX3(int n, double sol[]) {
+  for (int i = 0; i < n; n++) {
+    sol[i] = (i % 2) * 2 - 1;
+  }
+}
+
+// alternating -5, +5
+void buildX4(int n, double sol[]) {
+  for (int i = 0; i < n; n++) {
+    sol[i] = ((i % 2) * 2 - 1) * 5;
+  }
+}
+
+// alternating -100, +100
+void buildX5(int n, double sol[]) {
+  for (int i = 0; i < n; n++) {
+    sol[i] = ((i % 2) * 2 - 1) * 100;
+  }
+}
+
+void buildX(int n, double *solutions[5]) {
+  buildX1(n, solutions[0]);
+  buildX2(n, solutions[1]);
+  buildX3(n, solutions[2]);
+  buildX4(n, solutions[3]);
+  buildX5(n, solutions[4]);
+}
+
 double getValByCoords(int i, int j) {
   for (int rowEntryIndex = row_ptr_begin[i]; rowEntryIndex <= row_ptr_end[i]; rowEntryIndex++) {
     if (col_ind[rowEntryIndex] == j) {
@@ -90,6 +137,7 @@ void orderForPivot(int i, int matrixSize) {
   }
 
   swapRows(i, pivotInd);
+  swappedRows.push_back(make_pair(i, pivotInd));
 }
 
 void luFactorization(int matrixSize) {
@@ -99,7 +147,6 @@ void luFactorization(int matrixSize) {
       // permute
       orderForPivot(i, matrixSize);
       pivot = getValByCoords(i, i);
-      // printf("ZERO\n");
     }
     for (int j = i + 1; j < matrixSize; j++) {
       double mult = getValByCoords(j, i) / pivot;
@@ -111,6 +158,43 @@ void luFactorization(int matrixSize) {
     }
   }
 }   
+
+void calcRealB(int n, double *x[5], double *b[5]) {
+  for (int solInd = 0; solInd < 5; solInd++) {
+    for (int row = 0; row < n; row++) {
+      b[solInd][row] = 0;
+      for (int j = 0; j < n; j++) {
+        b[solInd][row] += getValByCoords(row, j) * x[solInd][row];
+      }
+    }
+  }
+}
+
+// Output: x
+void solveByLU(int n, double *b[5], double *x[5]) {
+  for (int solInd = 0; solInd < 5; solInd++) {
+    // permutate B's
+    for (const auto &swappedEntry : swappedRows) {
+      swap(b[solInd][swappedEntry.first], b[solInd][swappedEntry.second]);
+    }
+    // calc y
+    double y[5][n];
+    for (int i = 0; i < n; i++) {
+      y[solInd][i] = b[solInd][i];
+      for (int j = i - 1; j >= 0; j++) {
+        y[solInd][i] -= getValByCoords(i, j) * y[solInd][j];
+      }
+    }
+    // calc x
+    for (int i = n - 1; i >= 0; i--) {
+      x[solInd][i] = b[solInd][i];
+      for (int j = i + 1; j < n; j++) {
+        x[solInd][i] -= getValByCoords(i, j) * x[solInd][j];
+      }
+      x[solInd][i] /= getValByCoords(i, i);
+    }
+  }
+}
 
 int main(int argc, char **argv) {
   if (argc != 2)
@@ -133,25 +217,43 @@ int main(int argc, char **argv) {
 
   // dump_nonzeros(n_rows, values, col_ind, row_ptr_begin, row_ptr_end);
 
+  double **realX = new double*[5];
+  for (int i = 0; i < 5; i++) { realX[i] = new double[n_cols]; }
+  buildX(n_cols, realX);
+
+  double **b = new double*[5];
+  for (int i = 0; i < 5; i++) { b[i] = new double[n_cols]; }
+  calcRealB(n_cols, realX, b);
 
   struct timespec start_time;
   clock_gettime(CLOCK_REALTIME, &start_time);
 
   /* Perform LU factorization here */
   luFactorization(n_rows);
-  // solve();
+
+  struct timespec mid_time, elapsed_time;
+  clock_gettime(CLOCK_REALTIME, &mid_time);
+  timespec_subtract(&elapsed_time, &mid_time, &start_time);
+  double elapsed = (double)elapsed_time.tv_sec +
+      (double)elapsed_time.tv_nsec / 1000000000.0;
+  fprintf(stderr, "LU factorization elapsed time: %f s\n", elapsed);
+
+  // Solve system
+  double **solvedX = new double*[5];
+  for (int i = 0; i < 5; i++) { solvedX[i] = new double[n_cols]; }
+  solveByLU(n_cols, b, solvedX);
 
   struct timespec end_time;
   clock_gettime(CLOCK_REALTIME, &end_time);
 
   dump_nonzeros(n_rows, values, col_ind, row_ptr_begin, row_ptr_end);
+  // calcErrors();
 
-  struct timespec elapsed_time;
-  timespec_subtract(&elapsed_time, &end_time, &start_time);
+  timespec_subtract(&elapsed_time, &end_time, &mid_time);
 
-  double elapsed = (double)elapsed_time.tv_sec +
+  elapsed = (double)elapsed_time.tv_sec +
       (double)elapsed_time.tv_nsec / 1000000000.0;
-  fprintf(stderr, "elapsed time: %f s\n", elapsed);
+  fprintf(stderr, "System solved in: %f s\n", elapsed);
 
   return 0;
 }
