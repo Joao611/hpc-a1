@@ -119,7 +119,8 @@ int mm_read_banner(FILE *f, MM_typecode *matcode)
     for (p=storage_scheme; *p!='\0'; *p=tolower(*p),p++);
 
     /* check for banner */
-    if (strncmp(banner, MatrixMarketBanner, strlen(MatrixMarketBanner)) != 0)
+    if (strncmp(banner, MatrixMarketBanner, strlen(MatrixMarketBanner)) != 0
+    && strncmp(banner, MatrixMarketBanner+1, strlen(MatrixMarketBanner+1) != 0))
         return MM_NO_HEADER;
 
     /* first field should be "mtx" */

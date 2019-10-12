@@ -50,12 +50,65 @@ static int col_ind[max_n_elements];
 static int row_ptr_begin[max_n_rows];
 static int row_ptr_end[max_n_rows];
 
+double getValByCoords(int i, int j) {
+  for (int rowEntryIndex = row_ptr_begin[i]; rowEntryIndex < row_ptr_end[i]; rowEntryIndex++) {
+    if (col_ind[rowEntryIndex] == j) {
+      return values[rowEntryIndex];
+    }
+  }
+  // if coords aren't listed, it's a 0 entry
+  return 0;
+}
 
+void setValByCoords(int i, int j, int newVal) {
+  for (int rowEntryIndex = row_ptr_begin[i]; rowEntryIndex < row_ptr_end[i]; rowEntryIndex++) {
+    if (col_ind[rowEntryIndex] == j) {
+      values[rowEntryIndex] = newVal;
+      break;
+    }
+  }
+}
 
+void swapRows(int r1, int r2) {
+  int temp_begin = row_ptr_begin[r1];
+  int temp_end = row_ptr_end[r1];
+  row_ptr_begin[r1] = row_ptr_begin[r2];
+  row_ptr_end[r1] = row_ptr_end[r2];
+  row_ptr_begin[r2] = temp_begin;
+  row_ptr_end[r2] = temp_end;
+}
 
-int
-main(int argc, char **argv)
-{
+// interchange rows: max pivot <-> i
+void orderForPivot(int i, int matrixSize) {
+  double pivot = getValByCoords(i, i), pivotInd = i;
+  for (int line = i + 1; line < matrixSize; line++) {
+    double currVal = getValByCoords(line, i);
+    if (currVal > pivot) {
+      pivot = currVal;
+      pivotInd = line;
+    }
+  }
+
+  swapRows(i, pivotInd);
+}
+
+void luFactorization(int matrixSize) {
+  for (int i = 0; i < matrixSize; i++) {
+    // permute
+    orderForPivot(i, matrixSize);
+    double pivot = getValByCoords(i, i);
+    for (int j = i + 1; j < matrixSize; j++) {
+      double mult = getValByCoords(j, i) / pivot;
+      setValByCoords(j, i, mult);
+      for (int k = i + 1; k < matrixSize; k++) {
+        double x = getValByCoords(j, k) - mult * getValByCoords(i, k);
+        setValByCoords(j, k, x);
+      }
+    }
+  }
+}   
+
+int main(int argc, char **argv) {
   if (argc != 2)
     {
       fprintf(stderr, "usage: %s <filename>\n", argv[0]);
@@ -74,18 +127,20 @@ main(int argc, char **argv)
       return -1;
     }
 
-  /* For debugging, can be removed when implementation is finished. */
-  dump_nonzeros(n_rows, values, col_ind, row_ptr_begin, row_ptr_end);
+  // dump_nonzeros(n_rows, values, col_ind, row_ptr_begin, row_ptr_end);
 
 
   struct timespec start_time;
   clock_gettime(CLOCK_REALTIME, &start_time);
 
   /* Perform LU factorization here */
+  luFactorization(n_rows);
+  // solve();
 
   struct timespec end_time;
   clock_gettime(CLOCK_REALTIME, &end_time);
 
+  dump_nonzeros(n_rows, values, col_ind, row_ptr_begin, row_ptr_end);
 
   struct timespec elapsed_time;
   timespec_subtract(&elapsed_time, &end_time, &start_time);
