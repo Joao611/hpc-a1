@@ -51,7 +51,7 @@ static int row_ptr_begin[max_n_rows];
 static int row_ptr_end[max_n_rows];
 
 double getValByCoords(int i, int j) {
-  for (int rowEntryIndex = row_ptr_begin[i]; rowEntryIndex < row_ptr_end[i]; rowEntryIndex++) {
+  for (int rowEntryIndex = row_ptr_begin[i]; rowEntryIndex <= row_ptr_end[i]; rowEntryIndex++) {
     if (col_ind[rowEntryIndex] == j) {
       return values[rowEntryIndex];
     }
@@ -60,8 +60,8 @@ double getValByCoords(int i, int j) {
   return 0;
 }
 
-void setValByCoords(int i, int j, int newVal) {
-  for (int rowEntryIndex = row_ptr_begin[i]; rowEntryIndex < row_ptr_end[i]; rowEntryIndex++) {
+void setValByCoords(int i, int j, double newVal) {
+  for (int rowEntryIndex = row_ptr_begin[i]; rowEntryIndex <= row_ptr_end[i]; rowEntryIndex++) {
     if (col_ind[rowEntryIndex] == j) {
       values[rowEntryIndex] = newVal;
       break;
@@ -94,9 +94,13 @@ void orderForPivot(int i, int matrixSize) {
 
 void luFactorization(int matrixSize) {
   for (int i = 0; i < matrixSize; i++) {
-    // permute
-    orderForPivot(i, matrixSize);
     double pivot = getValByCoords(i, i);
+    if (pivot == 0) {
+      // permute
+      orderForPivot(i, matrixSize);
+      pivot = getValByCoords(i, i);
+      // printf("ZERO\n");
+    }
     for (int j = i + 1; j < matrixSize; j++) {
       double mult = getValByCoords(j, i) / pivot;
       setValByCoords(j, i, mult);
