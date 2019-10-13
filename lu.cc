@@ -181,7 +181,7 @@ void solveByLU(int n, double *b[5], double *x[5]) {
     double y[5][n];
     for (int i = 0; i < n; i++) {
       y[solInd][i] = b[solInd][i];
-      for (int j = i - 1; j >= 0; j++) {
+      for (int j = i - 1; j >= 0; j--) {
         y[solInd][i] -= getValByCoords(i, j) * y[solInd][j];
       }
     }
