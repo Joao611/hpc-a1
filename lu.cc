@@ -1,7 +1,8 @@
 #include <cstdio>
 #include <ctime>
-#include <utility>
+#include <utility> //std::pair
 #include <vector>
+#include <cmath>
 
 #include "matrix.h"
 
@@ -196,6 +197,22 @@ void solveByLU(int n, double *b[5], double *x[5]) {
   }
 }
 
+double calcErrors(int n, double **realX, double **solvedX) {
+  double delta = 0, realNorm = 0;
+  for (int sol = 0; sol < 5; sol++) {
+    for (int i = 0; i < n; i++) {
+      delta += (solvedX[sol][i] - realX[sol][i]) * (solvedX[sol][i] - realX[sol][i]);
+      realNorm += realX[sol][i] * realX[sol][i];
+    }
+  }
+  printf("%f %f\n", delta, realNorm);
+  if (realNorm == 0 && delta == 0) {
+    return 1.0;
+  } else {
+    return sqrt(delta / realNorm);
+  }
+}
+
 int main(int argc, char **argv) {
   if (argc != 2)
     {
@@ -220,10 +237,12 @@ int main(int argc, char **argv) {
   double **realX = new double*[5];
   for (int i = 0; i < 5; i++) { realX[i] = new double[n_cols]; }
   buildX(n_cols, realX);
+  printf("Built real X\n");
 
   double **b = new double*[5];
   for (int i = 0; i < 5; i++) { b[i] = new double[n_cols]; }
   calcRealB(n_cols, realX, b);
+  printf("Calculated real B\n");
 
   struct timespec start_time;
   clock_gettime(CLOCK_REALTIME, &start_time);
@@ -233,7 +252,9 @@ int main(int argc, char **argv) {
 
   struct timespec mid_time, elapsed_time;
   clock_gettime(CLOCK_REALTIME, &mid_time);
-  timespec_subtract(&elapsed_time, &mid_time, &start_time);
+  if (timespec_subtract(&elapsed_time, &mid_time, &start_time) != 0) {
+    printf("Invalid elapsed time\n");
+  };
   double elapsed = (double)elapsed_time.tv_sec +
       (double)elapsed_time.tv_nsec / 1000000000.0;
   fprintf(stderr, "LU factorization elapsed time: %f s\n", elapsed);
@@ -246,14 +267,22 @@ int main(int argc, char **argv) {
   struct timespec end_time;
   clock_gettime(CLOCK_REALTIME, &end_time);
 
-  dump_nonzeros(n_rows, values, col_ind, row_ptr_begin, row_ptr_end);
-  // calcErrors();
+  // dump_nonzeros(n_rows, values, col_ind, row_ptr_begin, row_ptr_end);
 
-  timespec_subtract(&elapsed_time, &end_time, &mid_time);
+  if (timespec_subtract(&elapsed_time, &end_time, &mid_time) != 0) {
+    printf("Invalid elapsed time\n");
+  }
 
   elapsed = (double)elapsed_time.tv_sec +
       (double)elapsed_time.tv_nsec / 1000000000.0;
   fprintf(stderr, "System solved in: %f s\n", elapsed);
+
+  double error = calcErrors(n_cols, realX, solvedX);
+  printf("Error: %f\n", error);
+
+  delete[] realX;
+  delete[] b;
+  delete[] solvedX;
 
   return 0;
 }
