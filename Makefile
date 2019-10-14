@@ -1,6 +1,6 @@
 CC = gcc-4.9
 CXX = g++-4.9
-CFLAGS = -Wall -Wextra -O3 -g -std=c++11
+CFLAGS = -Wall -Wextra -g -std=c++11
 
 all:	lu
 

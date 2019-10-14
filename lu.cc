@@ -46,16 +46,21 @@ timespec_subtract (struct timespec *result,
  * subscripts. Do not use pointers.
  */
 
-const int max_n_elements = 131072;
+const int max_n_elements = 10000000; //10M
+// const int max_n_elements = 131072;
 const int max_n_rows = 16384;
 
-static double values[max_n_elements];
+static double *values = new double[max_n_elements];
 
-static int col_ind[max_n_elements];
+static int *col_ind = new int[max_n_elements];
 static int row_ptr_begin[max_n_rows];
 static int row_ptr_end[max_n_rows];
 
 static vector<pair<int, int>> swappedRows;
+
+bool similarTo(double n1, double n2) {
+  return n1 - n2 <= pow(10, -4);
+}
 
 void buildX1(int n, double sol[]) {
   for (int i = 0; i < n; n++) {
@@ -108,11 +113,89 @@ double getValByCoords(int i, int j) {
   return 0;
 }
 
-void setValByCoords(int i, int j, double newVal) {
+static int lengthIncs = 0;
+static int lengthDecs = 0;
+
+/**
+ * Inserts newVal before valIndex.
+ */
+void insertValBefore(int newVal, int line, int col, int valIndex, int matrixSize, int *valLength) {
+  (*valLength)++;
+  lengthIncs++;
+  switch (*valLength) {
+    case 150000:
+    case 158152:
+    case 158153:
+    case 100000:
+    printf("%d %d %d\n", *valLength, lengthIncs, lengthDecs);
+    break;
+  }
+
+  // push back values and col indexes
+  for (int i = valIndex; i < *valLength - 1; i++) {
+    values[i + 1] = values[i];
+    col_ind[i + 1] = col_ind[i];
+  }
+  // set new val and col index
+  values[valIndex] = newVal;
+  col_ind[valIndex] = col;
+  // rewrite row pointers
+  int lastIndOfRow = row_ptr_end[line];
+  row_ptr_end[line]++;
+  for (int i = 0; i < matrixSize; i++) {
+    if (row_ptr_begin[i] > lastIndOfRow) {
+      row_ptr_begin[i]++;
+      row_ptr_end[i]++;
+    }
+  }
+}
+
+/**
+ * valIndex is the index of the value to remove.
+ */
+void removeVal(int line, int valIndex, int matrixSize, int *valLength) {
+  (*valLength)--;
+  lengthDecs--;
+  // printf("R%d ", *valLength);
+  // pull back values and col indexes
+  for (int i = valIndex; i < *valLength; i++) {
+    values[i] = values[i + 1];
+    col_ind[i] = col_ind[i + 1];
+  }
+  // rewrite row pointers
+  int lastIndOfRow = row_ptr_end[line];
+  row_ptr_end[line]--;
+
+  for (int i = 0; i < matrixSize; i++) {
+    if (row_ptr_begin[i] > lastIndOfRow) {
+      row_ptr_begin[i]--;
+      row_ptr_end[i]--;
+    }
+  }
+}
+
+void setValByCoords(int i, int j, double newVal, int matrixSize, int *valLength) {
+  // check if value already exists
   for (int rowEntryIndex = row_ptr_begin[i]; rowEntryIndex <= row_ptr_end[i]; rowEntryIndex++) {
     if (col_ind[rowEntryIndex] == j) {
-      values[rowEntryIndex] = newVal;
-      break;
+      if (similarTo(newVal, 0)) {
+        removeVal(i, rowEntryIndex, matrixSize, valLength);
+      } else {
+        values[rowEntryIndex] = newVal;
+      }
+      return;
+    }
+  }
+  // value must be inserted if not 0
+  if (!similarTo(newVal, 0)) {
+    // if (i == 62) {
+    //   printf("here\n");
+    // }
+    for (int rowEntryIndex = row_ptr_begin[i]; rowEntryIndex <= row_ptr_end[i]; rowEntryIndex++) {
+      if (col_ind[rowEntryIndex] > j || rowEntryIndex == row_ptr_end[i]) {
+        insertValBefore(newVal, i, j, rowEntryIndex, matrixSize, valLength);
+        return;
+      }
     }
   }
 }
@@ -141,24 +224,24 @@ void orderForPivot(int i, int matrixSize) {
   swappedRows.push_back(make_pair(i, pivotInd));
 }
 
-void luFactorization(int matrixSize) {
+void luFactorization(int matrixSize, int *valLength) {
   for (int i = 0; i < matrixSize; i++) {
     double pivot = getValByCoords(i, i);
-    if (pivot == 0) {
+    if (similarTo(pivot, 0)) {
       // permute
       orderForPivot(i, matrixSize);
       pivot = getValByCoords(i, i);
     }
     for (int j = i + 1; j < matrixSize; j++) {
       double mult = getValByCoords(j, i) / pivot;
-      setValByCoords(j, i, mult);
+      setValByCoords(j, i, mult, matrixSize, valLength);
       for (int k = i + 1; k < matrixSize; k++) {
         double x = getValByCoords(j, k) - mult * getValByCoords(i, k);
-        setValByCoords(j, k, x);
+        setValByCoords(j, k, x, matrixSize, valLength);
       }
     }
   }
-}   
+}
 
 void calcRealB(int n, double *x[5], double *b[5]) {
   for (int solInd = 0; solInd < 5; solInd++) {
@@ -234,8 +317,6 @@ int main(int argc, char **argv) {
       return -1;
     }
 
-  // dump_nonzeros(n_rows, values, col_ind, row_ptr_begin, row_ptr_end);
-
   double **realX = new double*[5];
   for (int i = 0; i < 5; i++) { realX[i] = new double[n_cols]; }
   buildX(n_cols, realX);
@@ -250,7 +331,7 @@ int main(int argc, char **argv) {
   clock_gettime(CLOCK_REALTIME, &start_time);
 
   /* Perform LU factorization here */
-  luFactorization(n_rows);
+  luFactorization(n_rows, &nnz);
 
   struct timespec mid_time, elapsed_time;
   clock_gettime(CLOCK_REALTIME, &mid_time);
@@ -260,6 +341,8 @@ int main(int argc, char **argv) {
   double elapsed = (double)elapsed_time.tv_sec +
       (double)elapsed_time.tv_nsec / 1000000000.0;
   fprintf(stderr, "LU factorization elapsed time: %f s\n", elapsed);
+
+  dump_nonzeros(n_rows, values, col_ind, row_ptr_begin, row_ptr_end);
 
   // Solve system
   double **solvedX = new double*[5];
@@ -278,7 +361,7 @@ int main(int argc, char **argv) {
   elapsed = (double)elapsed_time.tv_sec +
       (double)elapsed_time.tv_nsec / 1000000000.0;
   fprintf(stderr, "System solved in: %f s\n", elapsed);
-
+  printf("inserts removals %d %d\n", lengthIncs, lengthDecs);
   double errors[5];
   calcErrors(n_cols, realX, solvedX, errors);
   for (int i = 0; i < 5; i++) {
