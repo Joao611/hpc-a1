@@ -197,19 +197,21 @@ void solveByLU(int n, double *b[5], double *x[5]) {
   }
 }
 
-double calcErrors(int n, double **realX, double **solvedX) {
-  double delta = 0, realNorm = 0;
+void calcErrors(int n, double **realX, double **solvedX, double errors[]) {
+  double delta[5], realNorm[5];
   for (int sol = 0; sol < 5; sol++) {
+    delta[sol] = 0;
+    realNorm[sol] = 0;
     for (int i = 0; i < n; i++) {
-      delta += (solvedX[sol][i] - realX[sol][i]) * (solvedX[sol][i] - realX[sol][i]);
-      realNorm += realX[sol][i] * realX[sol][i];
+      delta[sol] += (solvedX[sol][i] - realX[sol][i]) * (solvedX[sol][i] - realX[sol][i]);
+      realNorm[sol] += realX[sol][i] * realX[sol][i];
     }
-  }
-  printf("%f %f\n", delta, realNorm);
-  if (realNorm == 0) {
-    return delta;
-  } else {
-    return sqrt(delta / realNorm);
+    printf("%f %f\n", delta[sol], realNorm[sol]);
+    if (realNorm[sol] == 0) {
+      errors[sol] = delta[sol];
+    } else {
+      errors[sol] = sqrt(delta[sol] / realNorm[sol]);
+    }
   }
 }
 
@@ -277,8 +279,11 @@ int main(int argc, char **argv) {
       (double)elapsed_time.tv_nsec / 1000000000.0;
   fprintf(stderr, "System solved in: %f s\n", elapsed);
 
-  double error = calcErrors(n_cols, realX, solvedX);
-  printf("Error: %f\n", error);
+  double errors[5];
+  calcErrors(n_cols, realX, solvedX, errors);
+  for (int i = 0; i < 5; i++) {
+    printf("Error of solution %d: %f\n", i, errors[i]);
+  }
 
   delete[] realX;
   delete[] b;
