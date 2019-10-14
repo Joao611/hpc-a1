@@ -206,8 +206,8 @@ double calcErrors(int n, double **realX, double **solvedX) {
     }
   }
   printf("%f %f\n", delta, realNorm);
-  if (realNorm == 0 && delta == 0) {
-    return 1.0;
+  if (realNorm == 0) {
+    return delta;
   } else {
     return sqrt(delta / realNorm);
   }
