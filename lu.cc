@@ -260,7 +260,6 @@ void calcErrors(int n, double **realX, double **solvedX, double errors[]) {
       delta[sol] += (solvedX[sol][i] - realX[sol][i]) * (solvedX[sol][i] - realX[sol][i]);
       realNorm[sol] += realX[sol][i] * realX[sol][i];
     }
-    printf("%f %f\n", delta[sol], realNorm[sol]);
     if (realNorm[sol] == 0) {
       errors[sol] = delta[sol];
     } else {
@@ -291,12 +290,10 @@ int main(int argc, char **argv) {
   double **realX = new double*[5];
   for (int i = 0; i < 5; i++) { realX[i] = new double[n_cols]; }
   buildX(n_cols, realX);
-  printf("Built real X\n");
 
   double **b = new double*[5];
   for (int i = 0; i < 5; i++) { b[i] = new double[n_cols]; }
   calcRealB(n_cols, realX, b);
-  printf("Calculated real B\n");
 
   struct timespec start_time;
   clock_gettime(CLOCK_REALTIME, &start_time);
