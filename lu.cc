@@ -59,38 +59,38 @@ static int row_ptr_end[max_n_rows];
 static vector<pair<int, int>> swappedRows;
 
 bool similarTo(double n1, double n2) {
-  return n1 - n2 <= pow(10, -4);
+  return abs(n1 - n2) <= pow(10, -4);
 }
 
 void buildX1(int n, double sol[]) {
-  for (int i = 0; i < n; n++) {
+  for (int i = 0; i < n; i++) {
     sol[i] = 1;
   }
 }
 
 void buildX2(int n, double sol[]) {
-  for (int i = 0; i < n; n++) {
+  for (int i = 0; i < n; i++) {
     sol[i] = 0.1;
   }
 }
 
 // alternating -1, +1
 void buildX3(int n, double sol[]) {
-  for (int i = 0; i < n; n++) {
+  for (int i = 0; i < n; i++) {
     sol[i] = (i % 2) * 2 - 1;
   }
 }
 
 // alternating -5, +5
 void buildX4(int n, double sol[]) {
-  for (int i = 0; i < n; n++) {
+  for (int i = 0; i < n; i++) {
     sol[i] = ((i % 2) * 2 - 1) * 5;
   }
 }
 
 // alternating -100, +100
 void buildX5(int n, double sol[]) {
-  for (int i = 0; i < n; n++) {
+  for (int i = 0; i < n; i++) {
     sol[i] = ((i % 2) * 2 - 1) * 100;
   }
 }
@@ -150,37 +150,11 @@ void insertValBefore(int newVal, int line, int col, int valIndex, int matrixSize
   }
 }
 
-/**
- * valIndex is the index of the value to remove.
- */
-void removeVal(int line, int valIndex, int matrixSize, int *valLength) {
-  (*valLength)--;
-  lengthDecs--;
-  // printf("R%d ", *valLength);
-  // pull back values and col indexes
-  for (int i = valIndex; i < *valLength; i++) {
-    values[i] = values[i + 1];
-    col_ind[i] = col_ind[i + 1];
-  }
-  // rewrite row pointers
-  int lastIndOfRow = row_ptr_end[line];
-  row_ptr_end[line]--;
-
-  for (int i = 0; i < matrixSize; i++) {
-    if (row_ptr_begin[i] > lastIndOfRow) {
-      row_ptr_begin[i]--;
-      row_ptr_end[i]--;
-    }
-  }
-}
-
 void setValByCoords(int i, int j, double newVal, int matrixSize, int *valLength) {
   // check if value already exists
   for (int rowEntryIndex = row_ptr_begin[i]; rowEntryIndex <= row_ptr_end[i]; rowEntryIndex++) {
     if (col_ind[rowEntryIndex] == j) {
-      if (similarTo(newVal, 0)) {
-        removeVal(i, rowEntryIndex, matrixSize, valLength);
-      } else {
+      if (!similarTo(newVal, 0)) {
         values[rowEntryIndex] = newVal;
       }
       return;
@@ -188,9 +162,6 @@ void setValByCoords(int i, int j, double newVal, int matrixSize, int *valLength)
   }
   // value must be inserted if not 0
   if (!similarTo(newVal, 0)) {
-    // if (i == 62) {
-    //   printf("here\n");
-    // }
     for (int rowEntryIndex = row_ptr_begin[i]; rowEntryIndex <= row_ptr_end[i]; rowEntryIndex++) {
       if (col_ind[rowEntryIndex] > j || rowEntryIndex == row_ptr_end[i]) {
         insertValBefore(newVal, i, j, rowEntryIndex, matrixSize, valLength);
@@ -248,7 +219,7 @@ void calcRealB(int n, double *x[5], double *b[5]) {
     for (int row = 0; row < n; row++) {
       b[solInd][row] = 0;
       for (int j = 0; j < n; j++) {
-        b[solInd][row] += getValByCoords(row, j) * x[solInd][row];
+        b[solInd][row] += getValByCoords(row, j) * x[solInd][j];
       }
     }
   }
@@ -271,7 +242,7 @@ void solveByLU(int n, double *b[5], double *x[5]) {
     }
     // calc x
     for (int i = n - 1; i >= 0; i--) {
-      x[solInd][i] = b[solInd][i];
+      x[solInd][i] = y[solInd][i];
       for (int j = i + 1; j < n; j++) {
         x[solInd][i] -= getValByCoords(i, j) * x[solInd][j];
       }
@@ -342,7 +313,7 @@ int main(int argc, char **argv) {
       (double)elapsed_time.tv_nsec / 1000000000.0;
   fprintf(stderr, "LU factorization elapsed time: %f s\n", elapsed);
 
-  dump_nonzeros(n_rows, values, col_ind, row_ptr_begin, row_ptr_end);
+  // dump_nonzeros(n_rows, values, col_ind, row_ptr_begin, row_ptr_end);
 
   // Solve system
   double **solvedX = new double*[5];
@@ -361,7 +332,7 @@ int main(int argc, char **argv) {
   elapsed = (double)elapsed_time.tv_sec +
       (double)elapsed_time.tv_nsec / 1000000000.0;
   fprintf(stderr, "System solved in: %f s\n", elapsed);
-  printf("inserts removals %d %d\n", lengthIncs, lengthDecs);
+
   double errors[5];
   calcErrors(n_cols, realX, solvedX, errors);
   for (int i = 0; i < 5; i++) {
